@@ -8,19 +8,16 @@ using System.Text;
 using System.Text.Json;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace ERP.CUST.MGMT
+namespace ERP.CUST.MGMT.Controllers
 {
     [Route("api")]
     [ApiController]
     public class CustomerController : ControllerBase
     {
-
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly HttpClient _httpClient;
 
-        public CustomerController(IHttpClientFactory httpClientFactory, HttpClient httpClient) 
+        public CustomerController(HttpClient httpClient)
         {
-            _httpClientFactory = httpClientFactory;
             _httpClient = httpClient;
         }
 
