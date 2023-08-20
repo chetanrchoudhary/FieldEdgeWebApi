@@ -8,19 +8,16 @@ using System.Text;
 using System.Text.Json;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace ERP.CUST.MGMT
+namespace ERP.CUST.MGMT.Controllers
 {
     [Route("api")]
     [ApiController]
     public class CustomerController : ControllerBase
     {
-
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly HttpClient _httpClient;
 
-        public CustomerController(IHttpClientFactory httpClientFactory, HttpClient httpClient) 
+        public CustomerController(HttpClient httpClient)
         {
-            _httpClientFactory = httpClientFactory;
             _httpClient = httpClient;
         }
 
@@ -43,8 +40,41 @@ namespace ERP.CUST.MGMT
 
             if (httpResponseMessage.IsSuccessStatusCode)
             {
-                try
+                using var contentStream = await httpResponseMessage.Content.ReadAsStreamAsync();
+
+                var options = new JsonSerializerOptions
                 {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                return await JsonSerializer.DeserializeAsync
+                    <IEnumerable<CustomerVM>>(contentStream, options);
+
+
+            }
+            return Enumerable.Empty<CustomerVM>();
+        }
+
+
+        [HttpGet]
+        [Route("customer/{id}")]
+        public async Task<CustomerVM> GetCustomerById(int id)
+        {
+            var httpRequestMessage = new HttpRequestMessage(
+            HttpMethod.Get,
+            AzureWebApiUrl.GetCustomerById + id)
+            {
+                Headers =
+            {
+                { HeaderNames.Accept, "application/json" },
+                { HeaderNames.UserAgent, "HttpRequestsSample" }
+            }
+            };
+
+            var httpResponseMessage = await _httpClient.SendAsync(httpRequestMessage);
+
+            if (httpResponseMessage.IsSuccessStatusCode)
+            {
                     using var contentStream = await httpResponseMessage.Content.ReadAsStreamAsync();
 
                     var options = new JsonSerializerOptions
@@ -53,33 +83,30 @@ namespace ERP.CUST.MGMT
                     };
 
                     return await JsonSerializer.DeserializeAsync
-                        <IEnumerable<CustomerVM>>(contentStream, options);
-                }
-                catch (Exception ex)
-                {
-                    return null;
-                }
+                        <CustomerVM>(contentStream, options);
 
             }
-            return Enumerable.Empty<CustomerVM>();
+            return new CustomerVM();
         }
+
 
         [HttpPost]
         [Route("add-customer")]
-        public async Task AddCustomer(CustomerVM todoItem)
+        public async Task AddCustomer([FromBody] AddCustomerVM customer)
         {
-            var todoItemJson = new StringContent(
-                JsonSerializer.Serialize(todoItem),
+            var customerJson = new StringContent(
+                JsonSerializer.Serialize(customer),
                 Encoding.UTF8,
                 Application.Json); // using static System.Net.Mime.MediaTypeNames;
 
             using var httpResponseMessage =
-                await _httpClient.PostAsync($"{AzureWebApiUrl.AddCustomer}", todoItemJson);
+                await _httpClient.PostAsync($"{AzureWebApiUrl.AddCustomer}", customerJson);
 
             httpResponseMessage.EnsureSuccessStatusCode();
+
         }
 
-        [HttpPut]
+        [HttpPost]
         [Route("update-customer")]
         public async Task SaveItemAsync(CustomerVM customer)
         {
@@ -89,13 +116,13 @@ namespace ERP.CUST.MGMT
                 Application.Json);
 
             using var httpResponseMessage =
-                await _httpClient.PutAsync($"{AzureWebApiUrl.GetCustomerById}{customer.Id}", customerJson);
+                await _httpClient.PostAsync($"{AzureWebApiUrl.GetCustomerById}{customer.Id}", customerJson);
 
             httpResponseMessage.EnsureSuccessStatusCode();
         }
 
         [HttpDelete]
-        [Route("remove-customer")]
+        [Route("remove-customer/{id}")]
         public async Task DeleteItemAsync(long id)
         {
             using var httpResponseMessage =
